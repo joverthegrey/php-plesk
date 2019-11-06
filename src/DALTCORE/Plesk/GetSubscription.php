@@ -39,11 +39,44 @@ EOT;
     {
         $this->default_params['filter'] = new Node('filter');
 
-        if (isset($params['subscription_id'])) {
-            $ownerIdNode = new Node('id', $params['subscription_id']);
-            $params['filter'] = new Node('filter', $ownerIdNode);
-        }        
+        if (!empty($params)) {
+            $params['filter'] = new Node('filter', $this->createFilter($params));
+        }
         parent::__construct($config, $params);
+    }
+
+    /**
+     * Create a filter
+     *
+     * @param array $params
+     * @return NodeList
+     */
+    private function createFilter($params = [])
+    {
+        $nodes = [];
+        $validNodes = [
+            'id', 'subscription_id',
+            'owner-id', 'name',
+            'owner-login', 'guid',
+            'owner-guid',
+            'external-id',
+            'owner-external-id'
+        ];
+
+        foreach ($validNodes as $nodeName) {
+            if (isset($params[$nodeName])) {
+                if (!is_array($params[$nodeName])) {
+                    $params[$nodeName] = [$params[$nodeName]];
+                }
+
+                foreach ($params[$nodeName] as $value) {
+                    // create new node (if needed with a rewritten node name)
+                    $nodes[] = new Node($nodeName == 'subscription_id' ? 'id' : $nodeName, $value);
+                }
+            }
+        }
+
+        return new NodeList($nodes);
     }
 
     /**
@@ -57,11 +90,15 @@ EOT;
         for ($i = 0; $i < count($xml->webspace->get->result); $i++) {
             $webspace = $xml->webspace->get->result[$i];
 
+            // nothing found or an error occurred, do an early return
+            if (!isset($webspace->data) || $webspace->status == 'error') {
+                return $result;
+            }
+
             $hosting = [];
             foreach ($webspace->data->hosting->children() as $host) {
                 $hosting[$host->getName()] = Xml::getProperties($host);
             }
-
 
             $subscriptions = [];
             foreach ($webspace->data->subscriptions->children() as $subscription) {
