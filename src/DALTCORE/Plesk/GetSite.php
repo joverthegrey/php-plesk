@@ -8,17 +8,17 @@ class GetSite extends BaseRequest
      */
     public $xml_packet = <<<EOT
 <?xml version="1.0"?>
-<packet version="1.6.0.0">
-<domain>
+<packet version="1.6.3.5">
+<site>
 	<get>
 		<filter>
-			<domain-name>{DOMAIN}</domain-name>
+			<name>{DOMAIN}</name>
 		</filter>
 		<dataset>
 			<hosting/>
 		</dataset>
 	</get>
-</domain>
+</site>
 </packet>
 EOT;
 
@@ -36,7 +36,12 @@ EOT;
      */
     protected function processResponse($xml)
     {
-        $site = $xml->domain->get->result;
+        $site = $xml->site->get->result;
+
+        // Subdomains return an empty xml result, but no error, so we throw one ourselves
+        if (empty($site)) {
+            throw new ApiRequestException('Could not find site, probably a subdomain');
+        }
 
         if ((string)$site->status == 'error') {
             throw new ApiRequestException($site);
